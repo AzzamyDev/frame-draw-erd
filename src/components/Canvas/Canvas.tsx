@@ -22,6 +22,14 @@ import { TableNode } from './TableNode'
 import { EnumNode } from './EnumNode'
 import { GroupNode } from './GroupNode'
 import { RelationshipEdge } from './RelationshipEdge'
+import {
+	GROUP_HDR,
+	GROUP_NODE_W,
+	GROUP_PAD,
+	computeGroupFrameOrigin,
+	estimateTableNodeHeight,
+	moveGroupMemberTables,
+} from './groupLayout'
 import { Plus, Minus, Maximize2, Lock, Unlock, MousePointer2, Hand } from 'lucide-react'
 
 const nodeTypes = {
@@ -113,24 +121,22 @@ export function Canvas() {
 	const groupBackgroundNodes = useMemo<Node[]>(() => {
 		if (!groups.length) return []
 		const tableMap = new Map(nodes.filter((n) => n.type === 'tableNode').map((n) => [n.id, n]))
-		const NODE_W = 270
-		const estimateH = (n: Node) => 80 + ((n.data as any)?.fields?.length || 0) * 32
-		const PAD = 28, HDR = 36
 
 		return groups.flatMap((group) => {
 			const members = group.tableNames.map((t) => tableMap.get(`table_${t}`)).filter((n): n is Node => !!n)
 			if (!members.length) return []
 			const minX = Math.min(...members.map((n) => n.position.x))
 			const minY = Math.min(...members.map((n) => n.position.y))
-			const maxX = Math.max(...members.map((n) => n.position.x + NODE_W))
-			const maxY = Math.max(...members.map((n) => n.position.y + estimateH(n)))
+			const maxX = Math.max(...members.map((n) => n.position.x + GROUP_NODE_W))
+			const maxY = Math.max(...members.map((n) => n.position.y + estimateTableNodeHeight(n)))
 			return [{
 				id: group.id,
 				type: 'groupNode',
-				position: { x: minX - PAD, y: minY - HDR - PAD },
-				style: { width: maxX - minX + PAD * 2, height: maxY - minY + HDR + PAD * 2 },
+				position: { x: minX - GROUP_PAD, y: minY - GROUP_HDR - GROUP_PAD },
+				style: { width: maxX - minX + GROUP_PAD * 2, height: maxY - minY + GROUP_HDR + GROUP_PAD * 2 },
 				data: { name: group.name, color: group.color },
-				draggable: false,
+				dragHandle: '.group-drag-handle',
+				draggable: true,
 				selectable: false,
 				zIndex: -1,
 			} as Node]
@@ -160,13 +166,33 @@ export function Canvas() {
 	const onNodesChange = useCallback(
 		(changes: NodeChange[]) => {
 			const groupIds = new Set(groupBackgroundNodes.map((n) => n.id))
-			const storeChanges = changes.filter((c) => !groupIds.has((c as any).id))
-			if (storeChanges.length > 0) {
-				const current = useStore.getState().nodes
-				setNodes(applyNodeChanges(storeChanges, current))
+			const groupsState = useStore.getState().groups
+			const groupById = new Map(groupsState.map((g) => [g.id, g]))
+
+			let working = useStore.getState().nodes
+			const tableNodes = () => working.filter((n) => n.type === 'tableNode')
+
+			for (const c of changes) {
+				if (c.type !== 'position' || !groupIds.has(c.id)) continue
+				const pos = (c as { position?: { x: number; y: number } }).position
+				if (!pos) continue
+				const group = groupById.get(c.id)
+				if (!group) continue
+				const origin = computeGroupFrameOrigin(group, tableNodes())
+				if (!origin) continue
+				const dx = pos.x - origin.x
+				const dy = pos.y - origin.y
+				if (dx !== 0 || dy !== 0) working = moveGroupMemberTables(group, working, dx, dy)
 			}
+
+			const storeChanges = changes.filter((c) => !groupIds.has((c as { id: string }).id))
+			if (storeChanges.length > 0) {
+				working = applyNodeChanges(storeChanges, working)
+			}
+
+			if (working !== useStore.getState().nodes) setNodes(working)
 		},
-		[nodes, setNodes, groupBackgroundNodes],
+		[setNodes, groupBackgroundNodes],
 	)
 
 	const onEdgesChange = useCallback(

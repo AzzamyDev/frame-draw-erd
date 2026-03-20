@@ -47,8 +47,9 @@ export function GroupNode({ data }: NodeProps) {
 					pointerEvents: 'none',
 				}}
 			>
-				{/* Header — interactive area */}
+				{/* Header — drag handle + interactive area */}
 				<div
+					className="group-drag-handle"
 					style={{
 						background: color,
 						borderRadius: '10px 10px 0 0',
@@ -57,7 +58,7 @@ export function GroupNode({ data }: NodeProps) {
 						alignItems: 'center',
 						gap: 6,
 						pointerEvents: 'all',
-						cursor: 'default',
+						cursor: 'grab',
 						userSelect: 'none',
 					}}
 				>
@@ -66,6 +67,8 @@ export function GroupNode({ data }: NodeProps) {
 						{name}
 					</span>
 					<button
+						type="button"
+						className="nodrag nopan"
 						ref={btnRef}
 						onClick={(e) => { e.stopPropagation(); openPicker() }}
 						style={{
