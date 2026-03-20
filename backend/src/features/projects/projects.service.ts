@@ -14,16 +14,14 @@ export class ProjectsService {
 				_count: { select: { diagrams: true } },
 			},
 		});
-		return {
-			projects: projects.map((p) => ({
-				id: p.id,
-				name: p.name,
-				description: p.description,
-				diagramCount: p._count.diagrams,
-				createdAt: p.createdAt,
-				updatedAt: p.updatedAt,
-			})),
-		};
+		return projects.map((p) => ({
+			id: p.id,
+			name: p.name,
+			description: p.description,
+			diagramCount: p._count.diagrams,
+			createdAt: p.createdAt,
+			updatedAt: p.updatedAt,
+		}));
 	}
 
 	async findOne(userId: string, projectId: string) {

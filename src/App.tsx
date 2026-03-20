@@ -5,30 +5,36 @@ import { Editor } from './components/Editor/Editor'
 import { Canvas } from './components/Canvas/Canvas'
 import { useStore } from './lib/store'
 import { PanelLeftClose, PanelLeftOpen } from 'lucide-react'
+import { useAutoSave } from './hooks/useAutoSave'
+import AuthModal from './components/Auth/AuthModal'
+import DiagramsPanel from './components/DiagramsPanel/DiagramsPanel'
 
 const MIN_SIDEBAR_WIDTH = 200
 const MAX_SIDEBAR_WIDTH = 600
 const DEFAULT_SIDEBAR_WIDTH = 320
 
 export default function App() {
-	const { darkMode, reParse } = useStore()
+	const { darkMode, reParse, clearAuth, openAuthModal, showAuthModal, showDiagramsPanel } = useStore()
 	const [collapsed, setCollapsed] = useState(false)
 	const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_SIDEBAR_WIDTH)
 	const dragging = useRef(false)
 	const startX = useRef(0)
 	const startWidth = useRef(0)
 
-	// Apply dark mode class
+	useAutoSave()
+
 	useEffect(() => {
 		document.documentElement.classList.toggle('dark', darkMode)
 	}, [darkMode])
 
-	// Initial parse
+	useEffect(() => { reParse() }, [])
+
 	useEffect(() => {
-		reParse()
+		const handler = () => { clearAuth(); openAuthModal() }
+		window.addEventListener('auth:expired', handler)
+		return () => window.removeEventListener('auth:expired', handler)
 	}, [])
 
-	// Resize drag handlers
 	const onMouseDown = (e: React.MouseEvent) => {
 		dragging.current = true
 		startX.current = e.clientX
@@ -41,11 +47,7 @@ export default function App() {
 		const onMouseMove = (e: MouseEvent) => {
 			if (!dragging.current) return
 			const delta = e.clientX - startX.current
-			const newWidth = Math.max(
-				MIN_SIDEBAR_WIDTH,
-				Math.min(MAX_SIDEBAR_WIDTH, startWidth.current + delta),
-			)
-			setSidebarWidth(newWidth)
+			setSidebarWidth(Math.max(MIN_SIDEBAR_WIDTH, Math.min(MAX_SIDEBAR_WIDTH, startWidth.current + delta)))
 		}
 		const onMouseUp = () => {
 			dragging.current = false
@@ -61,9 +63,7 @@ export default function App() {
 	}, [])
 
 	return (
-		<div
-			className={`flex flex-col h-screen overflow-hidden bg-gray-50 dark:bg-gray-950 ${darkMode ? 'dark' : ''}`}
-		>
+		<div className={`flex flex-col h-screen overflow-hidden bg-gray-50 dark:bg-gray-950 ${darkMode ? 'dark' : ''}`}>
 			<ReactFlowProvider>
 				<Navbar />
 
@@ -73,7 +73,6 @@ export default function App() {
 						className="flex shrink-0 relative border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900"
 						style={{ width: collapsed ? 36 : sidebarWidth }}
 					>
-						{/* Collapse toggle */}
 						<button
 							onClick={() => setCollapsed((v) => !v)}
 							className="absolute top-2 right-2 z-10 p-1 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
@@ -81,7 +80,6 @@ export default function App() {
 						>
 							{collapsed ? <PanelLeftOpen size={14} /> : <PanelLeftClose size={14} />}
 						</button>
-
 						{!collapsed && (
 							<div className="flex-1 overflow-hidden">
 								<Editor collapsed={collapsed} />
@@ -102,6 +100,10 @@ export default function App() {
 						<Canvas />
 					</div>
 				</div>
+
+				{/* Modals */}
+				{showDiagramsPanel && <DiagramsPanel />}
+				{showAuthModal && <AuthModal />}
 			</ReactFlowProvider>
 		</div>
 	)

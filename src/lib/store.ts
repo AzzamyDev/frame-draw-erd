@@ -2,6 +2,8 @@ import { create } from 'zustand'
 import { Node, Edge } from '@xyflow/react'
 import { parseDBML } from './parser'
 import { applyDagreLayout } from './layout'
+import { tokenStorage } from './api'
+import type { User, DiagramFull, CurrentDiagram, SaveStatus } from './types'
 
 const INITIAL_DBML = `Enum order_status {
   pending
@@ -52,6 +54,7 @@ Ref: order_items.order_id > orders.id
 Ref: order_items.product_id > products.id`
 
 interface DBStore {
+	// ── Diagram editor ──────────────────────────────────────────────────────
 	dbmlCode: string
 	parsedSchema: any | null
 	parseError: string | null
@@ -62,6 +65,9 @@ interface DBStore {
 	showMinimap: boolean
 	showEnums: boolean
 	showEdgeAnimation: boolean
+	focusTarget: { table: string; field: string } | null
+	nodeColors: Record<string, string>
+
 	setDbmlCode: (code: string) => void
 	reParse: () => void
 	reLayout: () => void
@@ -72,12 +78,7 @@ interface DBStore {
 	toggleEdgeAnimation: () => void
 	setNodes: (nodes: Node[]) => void
 	setEdges: (edges: Edge[]) => void
-	addRef: (
-		sourceTable: string,
-		sourceField: string,
-		targetTable: string,
-		targetField: string,
-	) => void
+	addRef: (sourceTable: string, sourceField: string, targetTable: string, targetField: string) => void
 	removeRef: (sourceHandle: string, targetHandle: string) => void
 	reconnectRef: (
 		oldSrcHandle: string,
@@ -87,13 +88,38 @@ interface DBStore {
 		newTgtTable: string,
 		newTgtField: string,
 	) => void
-	focusTarget: { table: string; field: string } | null
 	setFocusTarget: (target: { table: string; field: string } | null) => void
-	nodeColors: Record<string, string>
 	setNodeColor: (tableName: string, color: string) => void
+
+	// ── Auth ─────────────────────────────────────────────────────────────────
+	user: User | null
+	isAuthenticated: boolean
+	accessToken: string | null
+	refreshToken: string | null
+
+	setAuth: (user: User, accessToken: string, refreshToken: string) => void
+	clearAuth: () => void
+	hydrateAuth: () => void
+
+	// ── Diagram cloud context ────────────────────────────────────────────────
+	currentDiagram: CurrentDiagram | null
+	saveStatus: SaveStatus
+
+	openDiagram: (full: DiagramFull) => void
+	setSaveStatus: (status: SaveStatus) => void
+
+	// ── UI flags ─────────────────────────────────────────────────────────────
+	showAuthModal: boolean
+	authModalTab: 'login' | 'register'
+	showDiagramsPanel: boolean
+
+	openAuthModal: (tab?: 'login' | 'register') => void
+	closeAuthModal: () => void
+	toggleDiagramsPanel: () => void
 }
 
 export const useStore = create<DBStore>((set, get) => ({
+	// ── Diagram editor ──────────────────────────────────────────────────────
 	dbmlCode: INITIAL_DBML,
 	parsedSchema: null,
 	parseError: null,
@@ -107,6 +133,69 @@ export const useStore = create<DBStore>((set, get) => ({
 	showEdgeAnimation: false,
 	focusTarget: null,
 	nodeColors: {},
+
+	// ── Auth ─────────────────────────────────────────────────────────────────
+	user: null,
+	isAuthenticated: false,
+	accessToken: null,
+	refreshToken: null,
+
+	setAuth: (user, accessToken, refreshToken) => {
+		tokenStorage.set(accessToken, refreshToken, user)
+		set({ user, isAuthenticated: true, accessToken, refreshToken })
+	},
+
+	clearAuth: () => {
+		tokenStorage.clear()
+		window.history.replaceState(null, '', window.location.pathname)
+		set({
+			user: null,
+			isAuthenticated: false,
+			accessToken: null,
+			refreshToken: null,
+			currentDiagram: null,
+		})
+	},
+
+	hydrateAuth: () => {
+		const user = tokenStorage.getUser()
+		const accessToken = tokenStorage.getAccess()
+		const refreshToken = tokenStorage.getRefresh()
+		if (user && accessToken && refreshToken) {
+			set({ user, isAuthenticated: true, accessToken, refreshToken })
+		}
+	},
+
+	// ── Diagram cloud context ────────────────────────────────────────────────
+	currentDiagram: null,
+	saveStatus: 'idle',
+
+	openDiagram: (full) => {
+		window.history.pushState(null, '', `?p=${full.projectId}&d=${full.id}`)
+		set({
+			currentDiagram: { id: full.id, name: full.name, projectId: full.projectId },
+			dbmlCode: full.dbmlCode,
+			nodeColors: full.nodeColors ?? {},
+			showFieldTypes: full.showFieldTypes,
+			showMinimap: full.showMinimap,
+			showEnums: full.showEnums,
+			showEdgeAnimation: full.showEdgeAnimation,
+			nodes: full.nodes ?? [],
+			edges: full.edges ?? [],
+		})
+		get().reParse()
+	},
+
+	setSaveStatus: (saveStatus) => set({ saveStatus }),
+
+	// ── UI flags ─────────────────────────────────────────────────────────────
+	showAuthModal: false,
+	authModalTab: 'login',
+	showDiagramsPanel: false,
+
+	openAuthModal: (tab = 'login') => set({ showAuthModal: true, authModalTab: tab }),
+	closeAuthModal: () => set({ showAuthModal: false }),
+	toggleDiagramsPanel: () => set((s) => ({ showDiagramsPanel: !s.showDiagramsPanel })),
 
 	setDbmlCode: (code: string) => {
 		set({ dbmlCode: code })

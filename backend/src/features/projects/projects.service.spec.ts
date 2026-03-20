@@ -46,15 +46,15 @@ describe('ProjectsService', () => {
 
 			const result = await service.findAll('user-1');
 
-			expect(result.projects).toHaveLength(1);
-			expect(result.projects[0].id).toBe('proj-1');
-			expect(result.projects[0].diagramCount).toBe(0);
+			expect(result).toHaveLength(1);
+			expect(result[0].id).toBe('proj-1');
+			expect(result[0].diagramCount).toBe(0);
 		});
 
 		it('returns empty list when user has no projects', async () => {
 			prismaMock.project.findMany.mockResolvedValue([]);
 			const result = await service.findAll('user-1');
-			expect(result.projects).toHaveLength(0);
+			expect(result).toHaveLength(0);
 		});
 	});
 

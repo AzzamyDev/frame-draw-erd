@@ -54,14 +54,14 @@ describe('DiagramsService', () => {
 
 			const result = await service.findAll('user-1', 'proj-1');
 
-			expect(result.diagrams).toHaveLength(1);
-			expect(result.diagrams[0].id).toBe('diag-1');
+			expect(result).toHaveLength(1);
+			expect(result[0].id).toBe('diag-1');
 		});
 
 		it('returns empty list when project has no diagrams', async () => {
 			prismaMock.diagram.findMany.mockResolvedValue([]);
 			const result = await service.findAll('user-1', 'proj-1');
-			expect(result.diagrams).toHaveLength(0);
+			expect(result).toHaveLength(0);
 		});
 	});
 

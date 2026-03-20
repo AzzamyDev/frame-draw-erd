@@ -22,7 +22,7 @@ export class DiagramsService {
 			orderBy: { updatedAt: 'desc' },
 			select: { id: true, name: true, createdAt: true, updatedAt: true },
 		});
-		return { diagrams };
+		return diagrams;
 	}
 
 	async findOne(userId: string, projectId: string, diagramId: string) {

@@ -9,6 +9,7 @@ import {
 	EdgeChange,
 	Connection,
 	ConnectionLineType,
+	ConnectionMode,
 	applyNodeChanges,
 	applyEdgeChanges,
 	useReactFlow,
@@ -189,6 +190,7 @@ export function Canvas() {
 				onEdgesChange={onEdgesChange}
 				onConnect={onConnect}
 				onReconnect={onReconnect}
+				connectionMode={ConnectionMode.Loose}
 				nodesDraggable={!locked}
 				nodesConnectable={!locked}
 				elementsSelectable={!locked}
