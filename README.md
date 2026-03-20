@@ -7,30 +7,30 @@
 
 > [!WARNING]
 > **Disclaimer — Vibe Coded Project**
-> This project was built through *vibe coding* — an experimental, AI-assisted development process where features were designed and implemented iteratively through natural-language conversation with an AI pair programmer. The codebase may not follow conventional software-engineering best practices and is provided as-is, without guarantees of production readiness. Use at your own discretion.
+> This project was built through _vibe coding_ — an experimental, AI-assisted development process where features were designed and implemented iteratively through natural-language conversation with an AI pair programmer. The codebase may not follow conventional software-engineering best practices and is provided as-is, without guarantees of production readiness. Use at your own discretion.
 
 ---
 
 ## Features
 
-| Feature | Description |
-|---|---|
-| **Live DBML Editor** | Syntax-highlighted CodeMirror editor with real-time parsing and error feedback |
-| **Interactive ERD Canvas** | Drag, zoom, and pan a fully interactive React Flow diagram |
-| **Editable Relationships** | Draw connections by dragging field handles; delete or reconnect edges visually |
+| Feature                     | Description                                                                          |
+| --------------------------- | ------------------------------------------------------------------------------------ |
+| **Live DBML Editor**        | Syntax-highlighted CodeMirror editor with real-time parsing and error feedback       |
+| **Interactive ERD Canvas**  | Drag, zoom, and pan a fully interactive React Flow diagram                           |
+| **Editable Relationships**  | Draw connections by dragging field handles; delete or reconnect edges visually       |
 | **Orthogonal Edge Routing** | Edges route in horizontal/vertical segments only — reshapeable by dragging waypoints |
-| **Edge Color Picker** | Hover an edge → click the cog to change its color from a preset palette |
-| **Field Hover Tooltip** | Hover a field row to see its `note`, `default` value, and `enum` values in a popover |
-| **Enum Nodes** | Enum types rendered as separate nodes, toggleable from the toolbar |
-| **Group Selection** | Toggle select mode to rubber-band select multiple nodes at once |
-| **Table Header Colors** | Click the palette icon on any table header to change its accent color |
-| **Edge Animation** | Toggleable flowing-dash animation showing relationship direction |
-| **Minimap** | Toggleable minimap for navigating large schemas |
-| **Export PNG** | Export the current diagram as a high-resolution PNG |
-| **Export SQL DDL** | Generate SQL DDL from your DBML for PostgreSQL, MySQL, or MSSQL |
-| **Copy DBML** | Copy the raw DBML source to clipboard |
-| **Dark Mode** | Full dark/light theme toggle, persisted to localStorage |
-| **Canvas Controls** | Custom zoom in/out, fit view, pan/select mode toggle, and canvas lock |
+| **Edge Color Picker**       | Hover an edge → click the cog to change its color from a preset palette              |
+| **Field Hover Tooltip**     | Hover a field row to see its `note`, `default` value, and `enum` values in a popover |
+| **Enum Nodes**              | Enum types rendered as separate nodes, toggleable from the toolbar                   |
+| **Group Selection**         | Toggle select mode to rubber-band select multiple nodes at once                      |
+| **Table Header Colors**     | Click the palette icon on any table header to change its accent color                |
+| **Edge Animation**          | Toggleable flowing-dash animation showing relationship direction                     |
+| **Minimap**                 | Toggleable minimap for navigating large schemas                                      |
+| **Export PNG**              | Export the current diagram as a high-resolution PNG                                  |
+| **Export SQL DDL**          | Generate SQL DDL from your DBML for PostgreSQL, MySQL, or MSSQL                      |
+| **Copy DBML**               | Copy the raw DBML source to clipboard                                                |
+| **Dark Mode**               | Full dark/light theme toggle, persisted to localStorage                              |
+| **Canvas Controls**         | Custom zoom in/out, fit view, pan/select mode toggle, and canvas lock                |
 
 ---
 
