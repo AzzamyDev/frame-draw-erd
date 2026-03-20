@@ -375,14 +375,14 @@ export default function DiagramsPanel() {
 													autoFocus
 													value={renameProjectVal}
 													onChange={(e) => setRenameProjectVal(e.target.value)}
-													onBlur={() => commitRenameProject(p.id)}
+													onBlur={() => commitRenameProject(p.id, renameProjectVal)}
 													onKeyDown={(e) => {
-														if (e.key === 'Enter') commitRenameProject(p.id)
+														if (e.key === 'Enter') commitRenameProject(p.id, renameProjectVal)
 														if (e.key === 'Escape') setRenamingProjectId(null)
 													}}
 													className="w-full text-xs bg-zinc-800 border border-blue-500 rounded px-2 py-1 text-zinc-100 outline-none"
 												/>
-											</div>
+													</div>
 										) : (
 											<button
 												onClick={() => setSelectedProject(p)}

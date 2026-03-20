@@ -13,6 +13,7 @@ import {
 	applyNodeChanges,
 	applyEdgeChanges,
 	useReactFlow,
+	Node,
 	Edge,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'

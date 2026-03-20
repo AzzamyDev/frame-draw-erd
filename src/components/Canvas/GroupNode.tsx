@@ -17,7 +17,7 @@ const PALETTE = [
 ]
 
 export function GroupNode({ data }: NodeProps) {
-	const { name, color } = data as GroupNodeData
+	const { name, color } = data as unknown as GroupNodeData
 	const setGroupColor = useStore((s) => s.setGroupColor)
 
 	const [showPicker, setShowPicker] = useState(false)
