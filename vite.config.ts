@@ -13,7 +13,7 @@ export default defineConfig({
 		allowedHosts: ['localhost', '127.0.0.1'],
 		proxy: {
 			'/api': {
-				target: process.env.BACKEND_URL || 'http://localhost',
+				target: 'http://localhost:4000',
 				changeOrigin: true,
 			},
 		},
