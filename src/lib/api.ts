@@ -213,3 +213,13 @@ export const diagramsApi = {
 	delete: (projectId: string, id: string) =>
 		apiFetch(`/projects/${projectId}/diagrams/${id}`, { method: 'DELETE' }),
 }
+
+// ─── AI (server proxies Anthropic — avoids browser CORS) ─────────────────────
+
+export const aiApi = {
+	generateDbml: (prompt: string) =>
+		apiFetch<{ dbml: string }>('/ai/dbml', {
+			method: 'POST',
+			body: JSON.stringify({ prompt }),
+		}),
+}

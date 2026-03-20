@@ -2,8 +2,7 @@ import React, { useState } from 'react'
 import { Sparkles, Loader2, X } from 'lucide-react'
 import { useStore } from '@/lib/store'
 import { useReactFlow } from '@xyflow/react'
-
-const SYSTEM_PROMPT = `You are a DBML schema generator. Output ONLY valid DBML code. No explanation, no markdown fences, no extra text. Use the full DBML spec: Table blocks with typed fields, pk, not null, unique, default, increment annotations, Enum blocks for enumerated types, Ref statements with proper cardinality operators (>, <, -, <>), ref names, and indexes blocks where appropriate.`
+import { aiApi } from '@/lib/api'
 
 export function AIBar() {
 	const [prompt, setPrompt] = useState('')
@@ -12,45 +11,15 @@ export function AIBar() {
 	const { setDbmlCode } = useStore()
 	const { fitView } = useReactFlow()
 
-	const apiKey = (import.meta as any).env?.VITE_ANTHROPIC_API_KEY
-
 	const handleGenerate = async () => {
 		if (!prompt.trim() || loading) return
-		if (!apiKey) {
-			setError('Set VITE_ANTHROPIC_API_KEY in .env to use AI')
-			return
-		}
 
 		setLoading(true)
 		setError('')
 
 		try {
-			const res = await fetch('https://api.anthropic.com/v1/messages', {
-				method: 'POST',
-				headers: {
-					'x-api-key': apiKey,
-					'anthropic-version': '2023-06-01',
-					'content-type': 'application/json',
-					'anthropic-dangerous-direct-browser-calls': 'true',
-				},
-				body: JSON.stringify({
-					model: 'claude-sonnet-4-20250514',
-					max_tokens: 2000,
-					system: SYSTEM_PROMPT,
-					messages: [{ role: 'user', content: prompt }],
-				}),
-			})
-
-			if (!res.ok) {
-				const err = await res.json().catch(() => ({}))
-				throw new Error((err as any).error?.message || `HTTP ${res.status}`)
-			}
-
-			const data = await res.json()
-			const dbml = data.content?.[0]?.text || ''
-			if (!dbml.trim()) throw new Error('Empty response from Claude')
-
-			setDbmlCode(dbml.trim())
+			const { dbml } = await aiApi.generateDbml(prompt.trim())
+			setDbmlCode(dbml)
 			setPrompt('')
 			// Fit view after layout settles
 			setTimeout(() => fitView({ padding: 0.12, duration: 500 }), 300)

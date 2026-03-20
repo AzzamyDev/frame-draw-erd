@@ -64,19 +64,59 @@ function getDefaultValue(field: any): string | undefined {
 	return String(def.value)
 }
 
+/**
+ * @dbml/core only allows `Indexes { }` inside a `Table` block, not at file root
+ * (root-level Indexes are a dbdiagram.io extension). Strip them so parse succeeds.
+ */
+function stripTopLevelIndexesBlocks(code: string): string {
+	let result = code
+	const re = /^\s*Indexes\s*\{/im
+	for (;;) {
+		const m = re.exec(result)
+		if (!m) break
+		const start = m.index
+		const openBrace = start + m[0].length - 1
+		let depth = 0
+		let i = openBrace
+		for (; i < result.length; i++) {
+			const ch = result[i]
+			if (ch === '{') depth++
+			else if (ch === '}') {
+				depth--
+				if (depth === 0) {
+					i++
+					break
+				}
+			}
+		}
+		if (depth !== 0) break
+		let end = i
+		while (end < result.length && (result[end] === ' ' || result[end] === '\t')) end++
+		if (result[end] === '\n' || result[end] === '\r') {
+			end++
+			if (result[end - 1] === '\r' && result[end] === '\n') end++
+		}
+		result = result.slice(0, start) + result.slice(end)
+		re.lastIndex = start
+	}
+	return result.replace(/\n{3,}/g, '\n\n')
+}
+
 export function parseDBML(code: string): ParseResult {
+	let normalized = stripTopLevelIndexesBlocks(code)
+
 	// ── Pre-process: extract and strip `color:` from TableGroup settings ──────
 	// @dbml/core doesn't recognise `color:` — we store it ourselves.
 	// Extract colors first (on original code), then feed stripped version to parser.
 	const groupColorRegex = /TableGroup\s+["'`]?(\w+)["'`]?\s*\[[^\]]*color\s*:\s*(#[0-9a-fA-F]{3,8})/gi
 	const groupColorMap = new Map<string, string>()
 	let gcMatch: RegExpExecArray | null
-	while ((gcMatch = groupColorRegex.exec(code)) !== null) {
+	while ((gcMatch = groupColorRegex.exec(normalized)) !== null) {
 		groupColorMap.set(gcMatch[1], gcMatch[2])
 	}
 
 	// Strip `color: #hex` from TableGroup brackets so the parser doesn't choke
-	const stripped = code.replace(
+	const stripped = normalized.replace(
 		/(TableGroup\s+["'`]?\w+["'`]?\s*)\[([^\]]*)\]/g,
 		(_match, prefix, settings) => {
 			const cleaned = settings
