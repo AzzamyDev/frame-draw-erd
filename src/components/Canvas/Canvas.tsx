@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
 	ReactFlow,
 	Background,
@@ -19,12 +19,14 @@ import '@xyflow/react/dist/style.css'
 import { useStore } from '@/lib/store'
 import { TableNode } from './TableNode'
 import { EnumNode } from './EnumNode'
+import { GroupNode } from './GroupNode'
 import { RelationshipEdge } from './RelationshipEdge'
 import { Plus, Minus, Maximize2, Lock, Unlock, MousePointer2, Hand } from 'lucide-react'
 
 const nodeTypes = {
 	tableNode: TableNode,
 	enumNode: EnumNode,
+	groupNode: GroupNode,
 }
 
 const edgeTypes = {
@@ -79,6 +81,7 @@ export function Canvas() {
 	const {
 		nodes,
 		edges,
+		groups,
 		darkMode,
 		showMinimap,
 		showEnums,
@@ -106,17 +109,63 @@ export function Canvas() {
 		}
 	}, [nodes.length, fitView])
 
-	const visibleNodes = showEnums ? nodes : nodes.filter((n) => n.type !== 'enumNode')
+	const groupBackgroundNodes = useMemo<Node[]>(() => {
+		if (!groups.length) return []
+		const tableMap = new Map(nodes.filter((n) => n.type === 'tableNode').map((n) => [n.id, n]))
+		const NODE_W = 270
+		const estimateH = (n: Node) => 80 + ((n.data as any)?.fields?.length || 0) * 32
+		const PAD = 28, HDR = 36
+
+		return groups.flatMap((group) => {
+			const members = group.tableNames.map((t) => tableMap.get(`table_${t}`)).filter((n): n is Node => !!n)
+			if (!members.length) return []
+			const minX = Math.min(...members.map((n) => n.position.x))
+			const minY = Math.min(...members.map((n) => n.position.y))
+			const maxX = Math.max(...members.map((n) => n.position.x + NODE_W))
+			const maxY = Math.max(...members.map((n) => n.position.y + estimateH(n)))
+			return [{
+				id: group.id,
+				type: 'groupNode',
+				position: { x: minX - PAD, y: minY - HDR - PAD },
+				style: { width: maxX - minX + PAD * 2, height: maxY - minY + HDR + PAD * 2 },
+				data: { name: group.name, color: group.color },
+				draggable: false,
+				selectable: false,
+				zIndex: -1,
+			} as Node]
+		})
+	}, [nodes, groups])
+
+	// Build a map of tableId → group color so member nodes inherit the group header color
+	const tableGroupColorMap = useMemo(() => {
+		const map = new Map<string, string>()
+		groups.forEach((g) => g.tableNames.forEach((t) => map.set(`table_${t}`, g.color)))
+		return map
+	}, [groups])
+
+	const visibleNodes = useMemo(() => {
+		const tableNodes = (showEnums ? nodes : nodes.filter((n) => n.type !== 'enumNode')).map((n) => {
+			const groupColor = tableGroupColorMap.get(n.id)
+			if (!groupColor || n.type !== 'tableNode') return n
+			// Inject groupColor into data so TableNode can use it as default header color
+			return { ...n, data: { ...(n.data as object), groupColor } }
+		})
+		return [...groupBackgroundNodes, ...tableNodes]
+	}, [groupBackgroundNodes, nodes, showEnums, tableGroupColorMap])
 
 	// Use getState() instead of closure values to always get fresh state.
 	// Without this, React Flow firing onEdgesChange/onNodesChange right after
 	// reParse would overwrite the newly-parsed edges/nodes with stale ones.
 	const onNodesChange = useCallback(
 		(changes: NodeChange[]) => {
-			const current = useStore.getState().nodes
-			setNodes(applyNodeChanges(changes, current))
+			const groupIds = new Set(groupBackgroundNodes.map((n) => n.id))
+			const storeChanges = changes.filter((c) => !groupIds.has((c as any).id))
+			if (storeChanges.length > 0) {
+				const current = useStore.getState().nodes
+				setNodes(applyNodeChanges(storeChanges, current))
+			}
 		},
-		[setNodes],
+		[nodes, setNodes, groupBackgroundNodes],
 	)
 
 	const onEdgesChange = useCallback(

@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { Node, Edge } from '@xyflow/react'
-import { parseDBML } from './parser'
+import { parseDBML, type ParsedTableGroup } from './parser'
 import { applyDagreLayout } from './layout'
 import { tokenStorage } from './api'
 import type { User, DiagramFull, CurrentDiagram, SaveStatus } from './types'
@@ -58,6 +58,7 @@ interface DBStore {
 	dbmlCode: string
 	parsedSchema: any | null
 	parseError: string | null
+	groups: ParsedTableGroup[]
 	nodes: Node[]
 	edges: Edge[]
 	darkMode: boolean
@@ -80,6 +81,7 @@ interface DBStore {
 	setEdges: (edges: Edge[]) => void
 	addRef: (sourceTable: string, sourceField: string, targetTable: string, targetField: string, srcHandle?: string, tgtHandle?: string) => void
 	removeRef: (sourceHandle: string, targetHandle: string) => void
+	setGroupColor: (groupName: string, color: string) => void
 	reconnectRef: (
 		oldSrcHandle: string,
 		oldTgtHandle: string,
@@ -123,6 +125,7 @@ export const useStore = create<DBStore>((set, get) => ({
 	dbmlCode: INITIAL_DBML,
 	parsedSchema: null,
 	parseError: null,
+	groups: [],
 	nodes: [],
 	edges: [],
 	darkMode:
@@ -148,13 +151,24 @@ export const useStore = create<DBStore>((set, get) => ({
 	clearAuth: () => {
 		tokenStorage.clear()
 		window.history.replaceState(null, '', window.location.pathname)
+		// Reset diagram state so stale diagram isn't shown after sign-out
 		set({
 			user: null,
 			isAuthenticated: false,
 			accessToken: null,
 			refreshToken: null,
 			currentDiagram: null,
+			saveStatus: 'idle',
+			dbmlCode: INITIAL_DBML,
+			nodes: [],
+			edges: [],
+			parsedSchema: null,
+			parseError: null,
+			groups: [],
+			nodeColors: {},
 		})
+		// Re-parse initial DBML so the welcome diagram renders immediately
+		get().reParse()
 	},
 
 	hydrateAuth: () => {
@@ -239,6 +253,7 @@ export const useStore = create<DBStore>((set, get) => ({
 			set({
 				parsedSchema: result.schema,
 				parseError: null,
+				groups: result.groups,
 				nodes: layoutedNodes,
 				edges: newEdges,
 			})
@@ -323,6 +338,26 @@ export const useStore = create<DBStore>((set, get) => ({
 				}),
 			}))
 		}
+	},
+
+	setGroupColor: (groupName, color) => {
+		const { dbmlCode } = get()
+		const lines = dbmlCode.split('\n')
+		const updated = lines.map((line) => {
+			if (!/TableGroup\s/i.test(line)) return line
+			const nameMatch = line.match(/TableGroup\s+["'`]?(\w+)["'`]?/)
+			if (!nameMatch || nameMatch[1] !== groupName) return line
+
+			if (line.includes('[')) {
+				if (/color\s*:/i.test(line)) {
+					return line.replace(/color\s*:\s*#[0-9a-fA-F]*/i, `color: ${color}`)
+				}
+				return line.replace('[', `[color: ${color}, `)
+			}
+			if (line.includes('{')) return line.replace('{', `[color: ${color}] {`)
+			return line + ` [color: ${color}]`
+		})
+		get().setDbmlCode(updated.join('\n'))
 	},
 
 	setFocusTarget: (target) => set({ focusTarget: target }),

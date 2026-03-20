@@ -30,10 +30,18 @@ export interface ParsedEnum {
 	values: Array<{ name: string; note?: string }>
 }
 
+export interface ParsedTableGroup {
+	id: string
+	name: string
+	color: string
+	tableNames: string[]
+}
+
 export interface ParseResult {
 	schema: any
 	tables: ParsedTable[]
 	enums: ParsedEnum[]
+	groups: ParsedTableGroup[]
 	nodes: Node[]
 	edges: Edge[]
 }
@@ -57,7 +65,29 @@ function getDefaultValue(field: any): string | undefined {
 }
 
 export function parseDBML(code: string): ParseResult {
-	const parsed = Parser.parse(code, 'dbml')
+	// ── Pre-process: extract and strip `color:` from TableGroup settings ──────
+	// @dbml/core doesn't recognise `color:` — we store it ourselves.
+	// Extract colors first (on original code), then feed stripped version to parser.
+	const groupColorRegex = /TableGroup\s+["'`]?(\w+)["'`]?\s*\[[^\]]*color\s*:\s*(#[0-9a-fA-F]{3,8})/gi
+	const groupColorMap = new Map<string, string>()
+	let gcMatch: RegExpExecArray | null
+	while ((gcMatch = groupColorRegex.exec(code)) !== null) {
+		groupColorMap.set(gcMatch[1], gcMatch[2])
+	}
+
+	// Strip `color: #hex` from TableGroup brackets so the parser doesn't choke
+	const stripped = code.replace(
+		/(TableGroup\s+["'`]?\w+["'`]?\s*)\[([^\]]*)\]/g,
+		(_match, prefix, settings) => {
+			const cleaned = settings
+				.replace(/,?\s*color\s*:\s*#[0-9a-fA-F]*/gi, '') // remove color entry
+				.replace(/^\s*,\s*/, '')                           // trim leading comma
+				.trim()
+			return cleaned ? `${prefix}[${cleaned}]` : prefix.trimEnd() // drop empty []
+		},
+	)
+
+	const parsed = Parser.parse(stripped, 'dbml')
 
 	const schema = parsed.schemas?.[0] || parsed
 
@@ -200,5 +230,14 @@ export function parseDBML(code: string): ParseResult {
 		})
 	})
 
-	return { schema: parsed, tables, enums, nodes, edges }
+	// groupColorMap already built above (pre-processing step)
+	const GROUP_DEFAULT_COLORS = ['#6366f1', '#ec4899', '#f59e0b', '#10b981', '#3b82f6', '#ef4444']
+	const groups: ParsedTableGroup[] = (schema.tableGroups || []).map((group: any, idx: number) => ({
+		id: `group_${group.name}`,
+		name: group.name,
+		color: groupColorMap.get(group.name) || GROUP_DEFAULT_COLORS[idx % GROUP_DEFAULT_COLORS.length],
+		tableNames: (group.tables || []).map((t: any) => t.tableName || t.name),
+	}))
+
+	return { schema: parsed, tables, enums, groups, nodes, edges }
 }

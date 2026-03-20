@@ -266,7 +266,9 @@ export function TableNode({ data, selected }: NodeProps) {
 	const [pickerOpen, setPickerOpen] = useState(false)
 	const [pickerPos, setPickerPos] = useState({ top: 0, left: 0 })
 	const buttonRef = useRef<HTMLButtonElement>(null)
-	const headerColor = nodeColors[table.name] ?? '#1d4ed8'
+	// Priority: group color (if inside a TableGroup) → individual nodeColor → default blue
+	const groupColor = (data as any).groupColor as string | undefined
+	const headerColor = groupColor ?? nodeColors[table.name] ?? '#1d4ed8'
 
 	useEffect(() => {
 		if (!pickerOpen) return
