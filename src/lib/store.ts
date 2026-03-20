@@ -78,7 +78,7 @@ interface DBStore {
 	toggleEdgeAnimation: () => void
 	setNodes: (nodes: Node[]) => void
 	setEdges: (edges: Edge[]) => void
-	addRef: (sourceTable: string, sourceField: string, targetTable: string, targetField: string) => void
+	addRef: (sourceTable: string, sourceField: string, targetTable: string, targetField: string, srcHandle?: string, tgtHandle?: string) => void
 	removeRef: (sourceHandle: string, targetHandle: string) => void
 	reconnectRef: (
 		oldSrcHandle: string,
@@ -206,16 +206,32 @@ export const useStore = create<DBStore>((set, get) => ({
 		const { dbmlCode, nodes: currentNodes, edges: currentEdges } = get()
 		try {
 			const result = parseDBML(dbmlCode)
-			// Preserve waypoints from existing edges (matched by source+target handle)
+			// Strip side suffix → base key  e.g. "users-id-right" → "users-id"
+			const handleBase = (h: string | null | undefined) =>
+				(h ?? '').replace(/-right$|-left$/, '')
+
+			// Preserve user-chosen handles (left/right side) + waypoints
+			// Match existing edges by base key so side-changes survive re-parse
 			const newEdges = result.edges.map((newEdge) => {
+				const newSrcBase = handleBase(newEdge.sourceHandle)
+				const newTgtBase = handleBase(newEdge.targetHandle)
+
 				const existing = currentEdges.find(
 					(e) =>
-						e.sourceHandle === newEdge.sourceHandle &&
-						e.targetHandle === newEdge.targetHandle,
+						handleBase(e.sourceHandle) === newSrcBase &&
+						handleBase(e.targetHandle) === newTgtBase,
 				)
-				const waypoints = (existing?.data as any)?.waypoints
-				if (waypoints?.length) {
-					return { ...newEdge, data: { ...(newEdge.data as object), waypoints } }
+
+				if (existing) {
+					return {
+						...newEdge,
+						sourceHandle: existing.sourceHandle ?? newEdge.sourceHandle,
+						targetHandle: existing.targetHandle ?? newEdge.targetHandle,
+						data: {
+							...(newEdge.data as object),
+							waypoints: (existing.data as any)?.waypoints,
+						},
+					}
 				}
 				return newEdge
 			})
@@ -252,11 +268,61 @@ export const useStore = create<DBStore>((set, get) => ({
 	setNodes: (nodes) => set({ nodes }),
 	setEdges: (edges) => set({ edges }),
 
-	addRef: (sourceTable, sourceField, targetTable, targetField) => {
-		const { dbmlCode } = get()
-		const refLine = `\nRef: ${sourceTable}.${sourceField} > ${targetTable}.${targetField}`
+	addRef: (sourceTable, sourceField, targetTable, targetField, srcHandle?, tgtHandle?) => {
+		const { dbmlCode, parsedSchema } = get()
+
+		// Smart relation by naming convention + PK/unique fallback
+		// - field named exactly "id"           → "one" side
+		// - field ending "_id" or "Id" (FK)   → "many" side
+		// - fallback: check PK/unique from parsedSchema
+		// Operators: < = one-to-many  > = many-to-one  - = one-to-one  <> = many-to-many
+		const isByNameOne  = (n: string) => n === 'id'
+		const isByNameMany = (n: string) => n.endsWith('_id') || (n.endsWith('Id') && n !== 'id')
+
+		const getSchemaField = (tbl: string, fld: string) => {
+			const tables: any[] = parsedSchema?.tables ?? []
+			return tables.find((t: any) => t.name === tbl)?.fields?.find((f: any) => f.name === fld)
+		}
+
+		const resolveOneSide = (tableName: string, fieldName: string): boolean => {
+			if (isByNameOne(fieldName))  return true
+			if (isByNameMany(fieldName)) return false
+			// fallback: trust schema PK / unique flag
+			const f = getSchemaField(tableName, fieldName)
+			return !!(f?.pk || f?.unique)
+		}
+
+		const srcIsOne = resolveOneSide(sourceTable, sourceField)
+		const tgtIsOne = resolveOneSide(targetTable, targetField)
+
+		let op: string
+		if (srcIsOne && tgtIsOne)   op = '-'   // one-to-one
+		else if (srcIsOne)          op = '<'   // one-to-many  (source is "one")
+		else if (tgtIsOne)          op = '>'   // many-to-one  (target is "one")
+		else                        op = '<>'  // many-to-many
+
+		const refLine = `\nRef: ${sourceTable}.${sourceField} ${op} ${targetTable}.${targetField}`
 		const newCode = dbmlCode.trimEnd() + refLine + '\n'
-		get().setDbmlCode(newCode)
+		get().setDbmlCode(newCode) // calls reParse synchronously
+
+		// Patch the newly created edge with the user's actual chosen handles
+		if (srcHandle && tgtHandle) {
+			const handleBase = (h: string) => h.replace(/-right$|-left$/, '')
+			const wantedSrcBase = handleBase(srcHandle)
+			const wantedTgtBase = handleBase(tgtHandle)
+
+			set((s) => ({
+				edges: s.edges.map((e) => {
+					if (
+						handleBase(e.sourceHandle ?? '') === wantedSrcBase &&
+						handleBase(e.targetHandle ?? '') === wantedTgtBase
+					) {
+						return { ...e, sourceHandle: srcHandle, targetHandle: tgtHandle }
+					}
+					return e
+				}),
+			}))
+		}
 	},
 
 	setFocusTarget: (target) => set({ focusTarget: target }),

@@ -37,14 +37,17 @@ const edgeTypes = {
  * The side suffix is always the last segment after the last "-left" or "-right".
  */
 function parseHandleId(handleId: string): { tableName: string; fieldName: string } | null {
+	// Normalize invisible-handle suffixes added for bidirectional connections
+	const normalized = handleId.replace(/-left-src$/, '-left').replace(/-right-tgt$/, '-right')
+
 	const leftSuffix = '-left'
 	const rightSuffix = '-right'
 
 	let rest: string
-	if (handleId.endsWith(leftSuffix)) {
-		rest = handleId.slice(0, -leftSuffix.length)
-	} else if (handleId.endsWith(rightSuffix)) {
-		rest = handleId.slice(0, -rightSuffix.length)
+	if (normalized.endsWith(leftSuffix)) {
+		rest = normalized.slice(0, -leftSuffix.length)
+	} else if (normalized.endsWith(rightSuffix)) {
+		rest = normalized.slice(0, -rightSuffix.length)
 	} else {
 		return null
 	}
@@ -165,16 +168,23 @@ export function Canvas() {
 
 	const onConnect = useCallback(
 		(connection: Connection) => {
-			const src = connection.sourceHandle
-			const tgt = connection.targetHandle
+			let src = connection.sourceHandle
+			let tgt = connection.targetHandle
 			if (!src || !tgt) return
+
+			// ConnectionMode.Loose: source = where user dragged FROM, target = where they dropped.
+			// If user dragged from a left (target-type) handle, RF may swap source↔target.
+			// Detect swap: sourceHandle ends with "-left" AND targetHandle ends with "-right".
+			if (src.endsWith('-left') && tgt.endsWith('-right')) {
+				;[src, tgt] = [tgt, src]
+			}
 
 			const source = parseHandleId(src)
 			const target = parseHandleId(tgt)
 			if (!source || !target) return
 
-			// Generate Ref: source.field > target.field  (many → one)
-			addRef(source.tableName, source.fieldName, target.tableName, target.fieldName)
+			// Pass actual handles so addRef preserves user's chosen sides after reParse
+			addRef(source.tableName, source.fieldName, target.tableName, target.fieldName, src, tgt)
 		},
 		[addRef],
 	)

@@ -157,7 +157,7 @@ function FieldRow({
       `}
 				style={{ minHeight: 34, paddingLeft: 12, paddingRight: 12 }}
 			>
-				{/* Left — receive connections (target) AND initiate connections (source) */}
+				{/* Left — target handle (ConnectionMode.Loose allows dragging from here too) */}
 				<Handle
 					type="target"
 					position={Position.Left}
@@ -178,12 +178,7 @@ function FieldRow({
 						transition: 'all 0.15s ease',
 					}}
 				/>
-				<Handle
-					type="source"
-					position={Position.Left}
-					id={`${leftId}-src`}
-					style={{ position: 'absolute', top: '50%', left: -8, transform: 'translateY(-50%)', width: 14, height: 14, borderRadius: '50%', zIndex: 21, opacity: 0, border: 'none', background: 'transparent' }}
-				/>
+
 
 				<span
 					className={`flex-1 min-w-0 truncate font-mono
@@ -237,7 +232,7 @@ function FieldRow({
 					)}
 				</div>
 
-				{/* Right — initiate connections (source) AND receive connections (target) */}
+				{/* Right — source handle (ConnectionMode.Loose allows dropping here too) */}
 				<Handle
 					type="source"
 					position={Position.Right}
@@ -259,12 +254,7 @@ function FieldRow({
 						boxShadow: hovered ? '0 0 0 3px rgba(59,130,246,0.25)' : 'none',
 					}}
 				/>
-				<Handle
-					type="target"
-					position={Position.Right}
-					id={`${rightId}-tgt`}
-					style={{ position: 'absolute', top: '50%', right: -8, transform: 'translateY(-50%)', width: 14, height: 14, borderRadius: '50%', zIndex: 21, opacity: 0, border: 'none', background: 'transparent' }}
-				/>
+
 			</div>
 		</>
 	)
