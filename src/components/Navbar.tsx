@@ -1,67 +1,10 @@
-import React, { useState, useRef } from 'react'
-import { Database, CloudUpload } from 'lucide-react'
-import { AIBar } from './AIBar'
-import { Toolbar } from './Toolbar'
 import { useStore } from '@/lib/store'
-import { diagramsApi } from '@/lib/api'
-import SaveStatusIndicator from './Navbar/SaveStatusIndicator'
+import { CloudUpload, Database } from 'lucide-react'
+import { useState } from 'react'
+import { AIBar } from './AIBar'
 import SaveDiagramModal from './Navbar/SaveDiagramModal'
 import UserMenu from './Navbar/UserMenu'
-
-function DiagramNameEditor() {
-	const { currentDiagram, setSaveStatus } = useStore()
-	const [editing, setEditing] = useState(false)
-	const [value, setValue] = useState('')
-	const inputRef = useRef<HTMLInputElement>(null)
-
-	if (!currentDiagram) return null
-
-	const startEdit = () => {
-		setValue(currentDiagram.name)
-		setEditing(true)
-		setTimeout(() => inputRef.current?.select(), 0)
-	}
-
-	const commit = async () => {
-		setEditing(false)
-		const trimmed = value.trim()
-		if (!trimmed || trimmed === currentDiagram.name) return
-		try {
-			await diagramsApi.rename(currentDiagram.projectId, currentDiagram.id, trimmed)
-			useStore.setState((s) => ({
-				currentDiagram: s.currentDiagram ? { ...s.currentDiagram, name: trimmed } : null,
-			}))
-		} catch {
-			setSaveStatus('failed')
-		}
-	}
-
-	if (editing) {
-		return (
-			<input
-				ref={inputRef}
-				value={value}
-				onChange={(e) => setValue(e.target.value)}
-				onBlur={commit}
-				onKeyDown={(e) => {
-					if (e.key === 'Enter') commit()
-					if (e.key === 'Escape') setEditing(false)
-				}}
-				className="text-sm font-medium text-zinc-900 dark:text-zinc-100 bg-transparent border-b border-blue-500 outline-none px-0.5 max-w-[200px]"
-			/>
-		)
-	}
-
-	return (
-		<button
-			onClick={startEdit}
-			title="Click to rename"
-			className="text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 truncate max-w-[200px]"
-		>
-			{currentDiagram.name}
-		</button>
-	)
-}
+import { Toolbar } from './Toolbar'
 
 export function Navbar() {
 	const { isAuthenticated, openAuthModal, currentDiagram } = useStore()
@@ -69,26 +12,24 @@ export function Navbar() {
 
 	return (
 		<>
-			<header className="h-12 flex items-center px-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 z-10 shrink-0 gap-3">
+			<header className="h-14 flex items-center px-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 z-10 shrink-0 gap-3">
 				{/* Logo */}
 				<div className="flex items-center gap-2 shrink-0">
 					<div className="w-7 h-7 bg-gradient-to-br from-blue-600 to-blue-800 rounded-lg flex items-center justify-center">
 						<Database size={14} className="text-white" />
 					</div>
-					<span className="font-bold text-gray-900 dark:text-white text-sm">Frame</span>
-					<span className="text-gray-400 dark:text-gray-500 text-xs hidden sm:block">
-						DB Diagram
-					</span>
+					<div>
+						<span className="font-bold text-gray-900 dark:text-white text-sm">Frame</span>
+						<span className="text-gray-400 dark:text-gray-500 text-[10px] hidden sm:block">
+							Drawing ERD Tool
+						</span>
+					</div>
 				</div>
 
-				{/* Diagram name */}
-				<DiagramNameEditor />
-
-				{/* Save status */}
-				<SaveStatusIndicator />
-				{/* AI Bar */}
-				{/* <AIBar /> */}
 				<div className='grow flex items-center justify-end gap-2'>
+
+					{/* AI Bar */}
+					<AIBar />
 
 					{/* Toolbar */}
 					<Toolbar />

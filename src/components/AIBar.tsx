@@ -62,7 +62,7 @@ export function AIBar() {
 	}
 
 	return (
-		<div className="flex items-center gap-2 flex-1 min-w-0 max-w-2xl mx-4">
+		<div className="flex items-center gap-2 flex-1 min-w-0 max-w-lg mx-4">
 			<div className="relative flex-1">
 				<div className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-400">
 					<Sparkles size={14} />

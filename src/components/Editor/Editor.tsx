@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { EditorView, basicSetup } from 'codemirror'
 import { EditorState } from '@codemirror/state'
 import { keymap } from '@codemirror/view'
@@ -6,9 +6,11 @@ import { indentWithTab } from '@codemirror/commands'
 import { oneDark } from '@codemirror/theme-one-dark'
 import { bracketMatching, indentOnInput } from '@codemirror/language'
 import { closeBrackets } from '@codemirror/autocomplete'
-import { WandSparkles } from 'lucide-react'
+import { FileText, WandSparkles } from 'lucide-react'
 import { useStore } from '@/lib/store'
+import { diagramsApi } from '@/lib/api'
 import { dbmlExtensions } from './dbml-language'
+import SaveStatusIndicator from '../Navbar/SaveStatusIndicator'
 
 let debounceTimer: ReturnType<typeof setTimeout>
 
@@ -72,6 +74,61 @@ function findFieldLine(code: string, tableName: string, fieldName: string): numb
 		}
 	}
 	return -1
+}
+
+function DiagramNameEditor() {
+	const { currentDiagram, setSaveStatus } = useStore()
+	const [editing, setEditing] = useState(false)
+	const [value, setValue] = useState('')
+	const inputRef = useRef<HTMLInputElement>(null)
+
+	if (!currentDiagram) return null
+
+	const startEdit = () => {
+		setValue(currentDiagram.name)
+		setEditing(true)
+		setTimeout(() => inputRef.current?.select(), 0)
+	}
+
+	const commit = async () => {
+		setEditing(false)
+		const trimmed = value.trim()
+		if (!trimmed || trimmed === currentDiagram.name) return
+		try {
+			await diagramsApi.rename(currentDiagram.projectId, currentDiagram.id, trimmed)
+			useStore.setState((s) => ({
+				currentDiagram: s.currentDiagram ? { ...s.currentDiagram, name: trimmed } : null,
+			}))
+		} catch {
+			setSaveStatus('failed')
+		}
+	}
+
+	if (editing) {
+		return (
+			<input
+				ref={inputRef}
+				value={value}
+				onChange={(e) => setValue(e.target.value)}
+				onBlur={commit}
+				onKeyDown={(e) => {
+					if (e.key === 'Enter') commit()
+					if (e.key === 'Escape') setEditing(false)
+				}}
+				className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 bg-transparent border-b border-blue-500 outline-none px-0.5 max-w-[160px]"
+			/>
+		)
+	}
+
+	return (
+		<button
+			onClick={startEdit}
+			title="Click to rename"
+			className="text-xs font-semibold text-zinc-700 dark:text-zinc-200 hover:text-blue-500 dark:hover:text-blue-400 truncate max-w-[160px] transition-colors"
+		>
+			{currentDiagram.name}
+		</button>
+	)
 }
 
 export function Editor({ collapsed }: { collapsed: boolean }) {
@@ -170,10 +227,13 @@ export function Editor({ collapsed }: { collapsed: boolean }) {
 	return (
 		<div className="flex flex-col h-full overflow-hidden">
 			{/* Header */}
-			<div className="flex items-center justify-between px-3 py-2 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 shrink-0">
-				<span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-					DBML Editor
-				</span>
+			<div className="flex items-center justify-between px-3 py-2 h-10 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 shrink-0">
+				<div className="flex items-center gap-2 min-w-0">
+					<FileText size={14} />
+					<DiagramNameEditor />
+					{/* Save status */}
+					<SaveStatusIndicator />
+				</div>
 
 				<div className="flex items-center gap-2">
 					{parseError && (
