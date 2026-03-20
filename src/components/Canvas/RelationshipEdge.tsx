@@ -1,5 +1,5 @@
 import React, { useCallback, useRef, useState } from 'react'
-import { EdgeProps, EdgeLabelRenderer, useReactFlow, getSmoothStepPath } from '@xyflow/react'
+import { EdgeProps, EdgeLabelRenderer, useReactFlow, getSmoothStepPath, useNodes } from '@xyflow/react'
 import { Settings } from 'lucide-react'
 import { useStore } from '@/lib/store'
 
@@ -114,6 +114,74 @@ function buildPath(raw: Waypoint[], radius = 10): string {
 	return d
 }
 
+// ── Node-avoidance routing ────────────────────────────────────────────────────
+
+const AVOID_MARGIN = 20 // extra padding around each node rect
+
+/** Estimate a node's bounding box from its React Flow state */
+function nodeRect(node: any): { x: number; y: number; w: number; h: number } {
+	return {
+		x: node.position?.x ?? 0,
+		y: node.position?.y ?? 0,
+		w: node.measured?.width ?? 280,
+		h: node.measured?.height ?? (44 + ((node.data?.fields?.length ?? 4) * 34)),
+	}
+}
+
+/**
+ * Check if the vertical line x=[cx], y∈[yMin,yMax] intersects a padded node rect.
+ */
+function vertSegBlocked(
+	cx: number,
+	yMin: number,
+	yMax: number,
+	rects: Array<{ x: number; y: number; w: number; h: number }>,
+): boolean {
+	return rects.some(
+		(r) =>
+			cx > r.x - AVOID_MARGIN &&
+			cx < r.x + r.w + AVOID_MARGIN &&
+			yMin < r.y + r.h + AVOID_MARGIN &&
+			yMax > r.y - AVOID_MARGIN,
+	)
+}
+
+/**
+ * If the default center-X of a smoothstep path passes through an obstacle node,
+ * find the nearest clear center-X by scanning outward from the midpoint.
+ * Returns undefined when no avoidance is needed or no clear corridor is found.
+ */
+function computeAvoidCenterX(
+	sx: number,
+	sy: number,
+	tx: number,
+	ty: number,
+	nodes: any[],
+	sourceId: string,
+	targetId: string,
+): number | undefined {
+	const yMin = Math.min(sy, ty) - AVOID_MARGIN
+	const yMax = Math.max(sy, ty) + AVOID_MARGIN
+
+	// Nearly horizontal path — skip
+	if (yMax - yMin < AVOID_MARGIN * 2) return undefined
+
+	const obstacles = nodes
+		.filter((n) => n.type === 'tableNode' && n.id !== sourceId && n.id !== targetId)
+		.map(nodeRect)
+
+	const defaultCx = (sx + tx) / 2
+	if (!vertSegBlocked(defaultCx, yMin, yMax, obstacles)) return undefined // already clear
+
+	// Scan outward in steps of 20 px up to 800 px away from default center
+	for (let delta = 20; delta <= 800; delta += 20) {
+		if (!vertSegBlocked(defaultCx + delta, yMin, yMax, obstacles)) return defaultCx + delta
+		if (!vertSegBlocked(defaultCx - delta, yMin, yMax, obstacles)) return defaultCx - delta
+	}
+
+	return undefined // gave up — use default
+}
+
 // ── Markers ───────────────────────────────────────────────────────────────────
 
 function OneMarker({ x, y, angle, color }: { x: number; y: number; angle: number; color: string }) {
@@ -167,6 +235,8 @@ function markerAngle(pos: string) {
 
 export function RelationshipEdge({
 	id,
+	source,
+	target,
 	sourceX,
 	sourceY,
 	targetX,
@@ -178,6 +248,7 @@ export function RelationshipEdge({
 }: EdgeProps) {
 	const { setEdges, screenToFlowPosition } = useReactFlow()
 	const showEdgeAnimation = useStore((s) => s.showEdgeAnimation)
+	const allNodes = useNodes()
 	const d = data as any
 
 	const srcMark: string = d?.sourceRelation ?? '*'
@@ -208,6 +279,11 @@ export function RelationshipEdge({
 	let rawPts: Waypoint[] = []
 
 	if (n === 0) {
+		// Auto-route around obstacles when no manual waypoints are set
+		const avoidCx =
+			source !== target
+				? computeAvoidCenterX(sourceX, sourceY, targetX, targetY, allNodes, source, target)
+				: undefined
 		;[edgePath, labelX, labelY] = getSmoothStepPath({
 			sourceX,
 			sourceY,
@@ -216,6 +292,7 @@ export function RelationshipEdge({
 			targetY,
 			targetPosition,
 			borderRadius: 10,
+			...(avoidCx !== undefined ? { centerX: avoidCx } : {}),
 		})
 	} else {
 		rawPts = buildRawPts(
