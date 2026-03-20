@@ -48,17 +48,63 @@
 
 ---
 
-## Getting Started
+## Prerequisites
+- Node.js (untuk local dev): versi terbaru (disarankan Node 20+)
+- Docker Desktop + Docker Compose (untuk quick start via Docker)
 
+## Local Development
+1. Setup environment
+   - Copy environment untuk frontend & docker variables:
+     - `cp .env.example .env`
+   - Untuk backend development lokal, buat env juga di folder backend:
+     - `cp backend/.env.example backend/.env`
+2. Jalankan frontend
 ```bash
-# Install dependencies
-npm install
-
-# Start dev server
+cd /Users/azzamydev/Library/frame
+npm ci
 npm run dev
+```
+3. Jalankan backend
+```bash
+cd backend
+npm ci
 
-# Build for production
-npm run build
+# (Opsional saat pertama kali/struktur skema berubah)
+npm run db:generate
+npm run db:migrate
+
+npm run dev
+```
+
+## Docker Quick Access
+Disarankan karena akan menangani build frontend/backend + migrasi DB otomatis saat container backend start.
+
+1. Setup `.env`
+```bash
+cp .env.example .env
+```
+Pastikan wajib diisi:
+- `JWT_ACCESS_SECRET`
+- `JWT_REFRESH_SECRET`
+Opsional:
+- `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` (untuk login GitHub)
+- `ANTHROPIC_API_KEY` (untuk fitur AI)
+
+2. Jalankan
+```bash
+docker compose up -d --build
+```
+
+3. Akses aplikasi
+- Frontend: `http://localhost:8080`
+- Backend API: `http://localhost:4000/api`
+
+## Catatan Database (Postgres)
+- Postgres hanya membuat database saat **volume data** masih kosong.
+- Jika Anda mengubah `POSTGRES_DB` setelah `pgdata` terbentuk, DB lama tidak akan dibuat ulang otomatis. Reset volumenya:
+```bash
+docker compose down -v
+docker compose up -d --build
 ```
 
 ---
