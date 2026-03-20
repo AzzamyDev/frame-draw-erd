@@ -132,6 +132,7 @@ function DiagramNameEditor() {
 }
 
 export function Editor({ collapsed }: { collapsed: boolean }) {
+	const { currentDiagram } = useStore()
 	const containerRef = useRef<HTMLDivElement>(null)
 	const viewRef = useRef<EditorView | null>(null)
 	const { dbmlCode, setDbmlCode, parseError, darkMode, focusTarget, setFocusTarget } = useStore()
@@ -229,7 +230,9 @@ export function Editor({ collapsed }: { collapsed: boolean }) {
 			{/* Header */}
 			<div className="flex items-center justify-between px-3 py-2 h-10 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 shrink-0">
 				<div className="flex items-center gap-2 min-w-0">
-					<FileText size={14} />
+					{currentDiagram ? <FileText size={14} /> : (
+						<span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">DBML Editor</span>
+					)}
 					<DiagramNameEditor />
 					{/* Save status */}
 					<SaveStatusIndicator />
