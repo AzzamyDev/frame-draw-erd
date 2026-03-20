@@ -1,0 +1,9 @@
+node_modules
+dist
+coverage
+generated
+prisma/generated
+package-lock.json
+.env
+.env.*
+*.log

@@ -1,0 +1,78 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "./generated"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+
+model User {
+  id             String         @id @default(cuid())
+  email          String?        @unique
+  passwordHash   String?
+  githubId       String?        @unique
+  githubUsername String?
+  name           String?
+  avatarUrl      String?
+  darkMode       Boolean        @default(false)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  projects       Project[]
+  refreshTokens  RefreshToken[]
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  token     String    @unique
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime  @default(now())
+  revokedAt DateTime?
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+model Project {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String    @default("Untitled Project")
+  description String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  diagrams    Diagram[]
+
+  @@index([userId])
+  @@map("projects")
+}
+
+model Diagram {
+  id                String   @id @default(cuid())
+  projectId         String
+  project           Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name              String   @default("Untitled Diagram")
+  dbmlCode          String   @default("")
+  nodeColors        Json     @default("{}")
+  nodes             Json     @default("[]")
+  edges             Json     @default("[]")
+  showFieldTypes    Boolean  @default(true)
+  showMinimap       Boolean  @default(true)
+  showEnums         Boolean  @default(true)
+  showEdgeAnimation Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([projectId])
+  @@map("diagrams")
+}
